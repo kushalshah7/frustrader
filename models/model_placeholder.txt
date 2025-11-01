@@ -1,0 +1,2 @@
+PLACEHOLDER: Replace with trained ML model from CELL 10
+In production, run: pickle.dump(model, open('ml_model.pkl', 'wb'))

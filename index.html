@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FrusTrader - Live Trading Signals</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .status-bar {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-label {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .status-value {
+            background: #f0f0f0;
+            padding: 5px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .tier-container {
+            margin-bottom: 25px;
+        }
+        
+        .tier-header {
+            padding: 15px;
+            border-radius: 8px 8px 0 0;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .tier-1-header {
+            background: #10b981;
+        }
+        
+        .tier-2-header {
+            background: #f59e0b;
+        }
+        
+        .tier-3-header {
+            background: #ef4444;
+        }
+        
+        .tier-content {
+            background: white;
+            border-radius: 0 0 8px 8px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .signal {
+            background: #f9fafb;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-radius: 5px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .signal-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .signal-label {
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        
+        .signal-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .stock-name {
+            font-size: 1.3rem;
+            color: #667eea;
+        }
+        
+        .direction-long {
+            color: #10b981;
+            font-weight: bold;
+        }
+        
+        .direction-short {
+            color: #ef4444;
+            font-weight: bold;
+        }
+        
+        .no-signals {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 1.1rem;
+        }
+        
+        .refresh-info {
+            text-align: center;
+            color: white;
+            margin-top: 20px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .signal {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 FrusTrader</h1>
+            <p>Live Intraday Trading Signals</p>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">⏰ Last Updated:</span>
+                <span class="status-value" id="lastUpdate">Loading...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">📊 Total Signals:</span>
+                <span class="status-value" id="totalSignals">0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">🟢 Tier 1:</span>
+                <span class="status-value" id="tier1Count">0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">🟡 Tier 2:</span>
+                <span class="status-value" id="tier2Count">0</span>
+            </div>
+        </div>
+        
+        <div id="tier1Container"></div>
+        <div id="tier2Container"></div>
+        <div id="tier3Container"></div>
+        
+        <div class="refresh-info">
+            ↻ Page auto-refreshes every 5 minutes | Next update in <span id="countdown">5:00</span>
+        </div>
+    </div>
+    
+    <script>
+        const SIGNALS_CSV = 'signals.csv';
+        
+        async function loadSignals() {
+            try {
+                const response = await fetch(SIGNALS_CSV + '?t=' + new Date().getTime());
+                const text = await response.text();
+                const lines = text.split('\n').filter(line => line.trim());
+                
+                if (lines.length <= 1) {
+                    document.getElementById('tier1Container').innerHTML = '<div class="tier-container"><div class="tier-header tier-1-header">🟢 TIER 1 - HIGH CONFIDENCE (≥75)</div><div class="tier-content"><div class="no-signals">No signals yet. Market opening...</div></div></div>';
+                    return;
+                }
+                
+                const headers = lines[0].split(',');
+                const signals = lines.slice(1).map(line => {
+                    const values = line.split(',');
+                    const signal = {};
+                    headers.forEach((header, index) => {
+                        signal[header.trim()] = values[index] ? values[index].trim() : '';
+                    });
+                    return signal;
+                });
+                
+                const tier1 = signals.filter(s => s.Tier === 'TIER 1');
+                const tier2 = signals.filter(s => s.Tier === 'TIER 2');
+                const tier3 = signals.filter(s => s.Tier === 'TIER 3');
+                
+                document.getElementById('totalSignals').textContent = signals.length;
+                document.getElementById('tier1Count').textContent = tier1.length;
+                document.getElementById('tier2Count').textContent = tier2.length;
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+                
+                renderTier('tier1Container', tier1, 'TIER 1 - HIGH CONFIDENCE (≥75)', 'tier-1-header', '🟢');
+                renderTier('tier2Container', tier2, 'TIER 2 - MEDIUM CONFIDENCE (60-75)', 'tier-2-header', '🟡');
+                renderTier('tier3Container', tier3, 'TIER 3 - LOW CONFIDENCE (<60)', 'tier-3-header', '🔴');
+                
+            } catch (error) {
+                console.error('Error loading signals:', error);
+            }
+        }
+        
+        function renderTier(containerId, signals, tierName, headerClass, emoji) {
+            const container = document.getElementById(containerId);
+            
+            if (signals.length === 0) {
+                container.innerHTML = `<div class="tier-container"><div class="tier-header ${headerClass}">${emoji} ${tierName}</div><div class="tier-content"><div class="no-signals">No signals in this tier yet</div></div></div>`;
+                return;
+            }
+            
+            let html = `<div class="tier-container"><div class="tier-header ${headerClass}">${emoji} ${tierName} (${signals.length})</div><div class="tier-content">`;
+            
+            signals.forEach(signal => {
+                const directionClass = signal.Direction === 'LONG' ? 'direction-long' : 'direction-short';
+                html += `
+                    <div class="signal">
+                        <div class="signal-item">
+                            <div class="signal-label">Stock</div>
+                            <div class="signal-value stock-name">${signal.Stock || 'N/A'}</div>
+                        </div>
+                        <div class="signal-item">
+                            <div class="signal-label">Direction</div>
+                            <div class="signal-value ${directionClass}">${signal.Direction || 'N/A'}</div>
+                        </div>
+                        <div class="signal-item">
+                            <div class="signal-label">Entry</div>
+                            <div class="signal-value">₹${signal.Entry_Price || 'N/A'}</div>
+                        </div>
+                        <div class="signal-item">
+                            <div class="signal-label">ML Score</div>
+                            <div class="signal-value">${signal.ML_Score || 'N/A'}</div>
+                        </div>
+                        <div class="signal-item">
+                            <div class="signal-label">R:R Ratio</div>
+                            <div class="signal-value">${signal.RR_Ratio || 'N/A'}</div>
+                        </div>
+                        <div class="signal-item">
+                            <div class="signal-label">Time</div>
+                            <div class="signal-value">${signal.Time || 'N/A'}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div></div>';
+            container.innerHTML = html;
+        }
+        
+        function startCountdown() {
+            let seconds = 300;
+            setInterval(() => {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                document.getElementById('countdown').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                seconds--;
+                if (seconds < 0) seconds = 300;
+            }, 1000);
+        }
+        
+        loadSignals();
+        startCountdown();
+        setInterval(loadSignals, 300000);
+    </script>
+</body>
+</html>
