@@ -1,0 +1,33 @@
+name: FrusTrader Scanner
+
+on:
+  schedule:
+    - cron: '*/5 3-9 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: pip install pandas numpy yfinance xgboost scikit-learn requests beautifulsoup4 pytz -q
+    
+    - name: Run scanner
+      run: python scripts/run_scanner.py
+    
+    - name: Commit and push
+      run: |
+        git config user.email "action@github.com"
+        git config user.name "GitHub Action"
+        git add signals.csv
+        git commit -m "Update signals" || true
+        git push
+      continue-on-error: true
